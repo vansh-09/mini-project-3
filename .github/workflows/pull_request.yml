@@ -1,0 +1,79 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  build_test:
+    name: Build & test (npm)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json found; skipping install/build/test."
+            exit 0
+          fi
+
+      - name: Lint (if available)
+        run: |
+          if npm run | grep -q " lint"; then
+            npm run lint
+          else
+            echo "No lint script found; skipping lint."
+          fi
+
+      - name: Build (if available)
+        run: |
+          if npm run | grep -q " build"; then
+            npm run build
+          else
+            echo "No build script found; skipping build."
+          fi
+
+      - name: Test (if available)
+        run: |
+          if npm run | grep -q " test"; then
+            npm test
+          else
+            echo "No test script found; skipping tests."
+          fi
+
+  supabase_sanity:
+    name: Supabase presence check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for Supabase config/migrations (if present)
+        run: |
+          echo "Checking for Supabase directories/files (best-effort)..."
+          if [ -d "supabase" ]; then
+            echo "Found ./supabase"
+            if [ -d "supabase/migrations" ]; then
+              echo "Found ./supabase/migrations"
+            else
+              echo "No ./supabase/migrations directory found."
+            fi
+          else
+            echo "No ./supabase directory found; skipping Supabase sanity checks."
+          fi
