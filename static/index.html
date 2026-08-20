@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduVision — Diagram to Speech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(18, 26, 43, 0.75);
+      --bg-card-border: rgba(255, 255, 255, 0.1);
+      --accent-primary: #6366f1;
+      --accent-primary-hover: #4f46e5;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --accent-cyan: #06b6d4;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --radius-lg: 20px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-glow: 0 10px 40px -10px rgba(99, 102, 241, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.12) 0%, transparent 45%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.6;
+    }
+
+    header {
+      padding: 2rem 2rem 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .brand-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: white;
+      stroke-width: 2;
+    }
+
+    .brand-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem 2rem 4rem;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero h1 {
+      font-size: 2.75rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    /* Layout Grid */
+    .app-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .app-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--bg-card-border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+    }
+
+    .card-title svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--accent-primary);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed rgba(99, 102, 241, 0.35);
+      border-radius: var(--radius-md);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(99, 102, 241, 0.03);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent-primary);
+      background: rgba(99, 102, 241, 0.08);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .dropzone-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(99, 102, 241, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-primary);
+    }
+
+    .dropzone-icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .dropzone-text h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .dropzone-text p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    /* Sample Diagrams Picker */
+    .samples-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .samples-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .samples-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    .sample-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sample-chip:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .sample-chip img {
+      width: 100%;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+
+    .sample-chip span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Diagram Preview Area */
+    .preview-box {
+      width: 100%;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #000;
+      display: none;
+      position: relative;
+    }
+
+    .preview-box img {
+      width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .preview-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Progress Status */
+    .progress-box {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      transition: color 0.3s ease;
+    }
+
+    .step-item.active {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .step-item.completed {
+      color: #34d399;
+    }
+
+    .step-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--text-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .step-item.active .step-dot {
+      border-color: var(--accent-primary);
+      background: rgba(99, 102, 241, 0.2);
+      color: var(--accent-primary);
+      animation: pulse 1.5s infinite;
+    }
+
+    .step-item.completed .step-dot {
+      border-color: #34d399;
+      background: #34d399;
+      color: #000;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+
+    /* Explanation Results */
+    .result-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .placeholder-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-subtle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .placeholder-state svg {
+      width: 48px;
+      height: 48px;
+      stroke: currentColor;
+      fill: none;
+      opacity: 0.4;
+    }
+
+    .explanation-card {
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .explanation-quote {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #f1f5f9;
+    }
+
+    /* Audio Player */
+    .audio-player-card {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    audio {
+      width: 100%;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
+      color: white;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .analysis-details {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: #050811;
+      padding: 1rem;
+      border-radius: var(--radius-sm);
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: pre-wrap;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-subtle);
+      font-size: 0.875rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">EduVision</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Diagram-to-Speech Educational Pipeline</div>
+      </div>
+    </div>
+    <div class="brand-badge">Groq Vision & TTS Engine</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Turn Diagrams into Spoken Explanations</h1>
+      <p>Drop any graph, chart, or scientific diagram. EduVision analyzes key elements and synthesizes clear, educational audio narration.</p>
+    </section>
+
+    <div class="app-grid">
+      
+      <!-- Left Column: Upload & Sample Input -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Input Diagram
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2l1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <h3>Drag & Drop Diagram Image Here</h3>
+            <p>Supports PNG, JPG, WEBP, or click to browse</p>
+          </div>
+          <input type="file" id="fileInput" class="file-input" accept="image/*">
+        </div>
+
+        <div class="preview-box" id="previewBox">
+          <span class="preview-badge">Diagram Input</span>
+          <img id="previewImg" src="" alt="Uploaded Diagram">
+        </div>
+
+        <div class="samples-section">
+          <div class="samples-label">Or choose a sample diagram:</div>
+          <div class="samples-grid">
+            <div class="sample-chip" onclick="loadSample('sample_diagram_1.png')">
+              <img src="/static/sample_diagrams/sample_diagram_1.png" alt="Sample 1">
+              <span>Line Graph</span>
+            </div>
+            <div class="sample-chip" onclick="loadSample('sample_diagram_2.png')">
+              <img src="/static/sample_diagrams/sample_diagram_2.png" alt="Sample 2">
+              <span>Flowchart</span>
+            </div>
+            <div class="sample-chip" onclick="loadSample('sample_diagram_3.png')">
+              <img src="/static/sample_diagrams/sample_diagram_3.png" alt="Sample 3">
+              <span>Bar Chart</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Processing Steps -->
+        <div class="progress-box" id="progressBox">
+          <div class="step-item" id="step1">
+            <div class="step-dot">1</div>
+            <span>Analyzing diagram (Groq Vision / OCR fallback)...</span>
+          </div>
+          <div class="step-item" id="step2">
+            <div class="step-dot">2</div>
+            <span>Generating spoken educational explanation...</span>
+          </div>
+          <div class="step-item" id="step3">
+            <div class="step-dot">3</div>
+            <span>Synthesizing MP3 audio explanation (gTTS)...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Results & Audio -->
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><path d="M19 11a7 7 0 0 1-7 7m0 0a7 7 0 0 1-7-7m7 7v4m-4 0h8M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z"/></svg>
+          Educational Spoken Audio
+        </div>
+
+        <div id="resultsContainer" class="result-section">
+          <div class="placeholder-state" id="placeholderState">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 9l12-2M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12-2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+            <p>Upload a diagram or select a sample to hear the educational explanation.</p>
+          </div>
+
+          <div id="outputContent" style="display: none; flex-direction: column; gap: 1.25rem;">
+            <div class="explanation-card">
+              <p class="explanation-quote" id="explanationText"></p>
+            </div>
+
+            <div class="audio-player-card">
+              <div style="font-size: 0.875rem; font-weight: 600; color: var(--text-muted);">Play Explanation Audio:</div>
+              <audio id="audioPlayer" controls autoplay></audio>
+              <div class="btn-group">
+                <a id="downloadAudioBtn" class="btn btn-primary" download="diagram_explanation.mp3">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                  Download Audio (.mp3)
+                </a>
+                <button class="btn btn-secondary" onclick="copyExplanation()">
+                  Copy Text
+                </button>
+              </div>
+            </div>
+
+            <details>
+              <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">View Raw Structural Breakdown</summary>
+              <div class="analysis-details" id="understandingText" style="margin-top: 0.5rem;"></div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    EduVision AI Pipeline — Powered by Groq Vision & gTTS
+  </footer>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const previewBox = document.getElementById('previewBox');
+    const previewImg = document.getElementById('previewImg');
+    const progressBox = document.getElementById('progressBox');
+    const placeholderState = document.getElementById('placeholderState');
+    const outputContent = document.getElementById('outputContent');
+    const explanationText = document.getElementById('explanationText');
+    const understandingText = document.getElementById('understandingText');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const downloadAudioBtn = document.getElementById('downloadAudioBtn');
+
+    // Drag and Drop listeners
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'), false);
+    });
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileUpload(e.target.files[0]);
+      }
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileUpload(files[0]);
+      }
+    });
+
+    function showPreview(src) {
+      previewImg.src = src;
+      previewBox.style.display = 'block';
+    }
+
+    function setStep(stepNum, status) {
+      const el = document.getElementById(`step${stepNum}`);
+      if (status === 'active') {
+        el.className = 'step-item active';
+      } else if (status === 'completed') {
+        el.className = 'step-item completed';
+      } else {
+        el.className = 'step-item';
+      }
+    }
+
+    async function handleFileUpload(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Local preview
+      const reader = new FileReader();
+      reader.onload = (e) => showPreview(e.target.result);
+      reader.readAsDataURL(file);
+
+      processPipeline('/api/process', formData);
+    }
+
+    async function loadSample(filename) {
+      showPreview(`/static/sample_diagrams/${filename}`);
+      processPipeline(`/api/process-sample/${filename}`, null, 'POST');
+    }
+
+    async function processPipeline(url, body, method = 'POST') {
+      // Reset UI
+      progressBox.style.display = 'flex';
+      placeholderState.style.display = 'none';
+      outputContent.style.display = 'none';
+      
+      setStep(1, 'active');
+      setStep(2, '');
+      setStep(3, '');
+
+      try {
+        const options = { method: method };
+        if (body) options.body = body;
+
+        // Step transition animation
+        setTimeout(() => setStep(2, 'active'), 2000);
+        setTimeout(() => setStep(3, 'active'), 4000);
+
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || 'Processing failed');
+        }
+
+        const data = await response.json();
+
+        setStep(1, 'completed');
+        setStep(2, 'completed');
+        setStep(3, 'completed');
+
+        // Display results
+        explanationText.textContent = data.explanation;
+        understandingText.textContent = data.understanding;
+        audioPlayer.src = data.audio_url;
+        downloadAudioBtn.href = data.audio_url;
+
+        outputContent.style.display = 'flex';
+        audioPlayer.play().catch(() => {});
+
+      } catch (err) {
+        alert('Error: ' + err.message);
+        placeholderState.style.display = 'flex';
+        progressBox.style.display = 'none';
+      }
+    }
+
+    function copyExplanation() {
+      navigator.clipboard.writeText(explanationText.textContent);
+      alert('Explanation copied to clipboard!');
+    }
+  </script>
+</body>
+</html>
