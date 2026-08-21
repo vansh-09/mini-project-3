@@ -142,4 +142,21 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-__pycache__ 
+__pycache__
+**/__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Runtime-generated storage (frames, audio, metadata, uploads)
+storage/audio/*
+storage/frames/*
+storage/metadata/*
+storage/uploads/*
+!storage/audio/.gitkeep
+!storage/frames/.gitkeep
+!storage/metadata/.gitkeep
+!storage/uploads/.gitkeep
+
+# macOS
+.DS_Store

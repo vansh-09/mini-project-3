@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from PIL import Image, ImageDraw
 
-OUTPUT_DIR = "sample_diagrams"
+# Always write to project-root/sample_diagrams regardless of CWD
+ROOT_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = str(ROOT_DIR / "sample_diagrams")
 
 def ensure_output_dir():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
