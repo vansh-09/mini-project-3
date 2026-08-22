@@ -5,12 +5,67 @@ EduVision converts diagram images (charts, graphs, flowcharts, schematics) into 
 ---
 
 ## Features
-- **Diagram Understanding (Groq Vision API)**: Analyzes structure, axes, titles, legends, and data trends using Groq vision models (`qwen/qwen3.6-27b`). Automatically falls back to OCR (`pytesseract`) + Groq text model if vision is unavailable or rate-limited.
-- **Educational Explanation (Groq Text LLM)**: Synthesizes a 3-5 sentence spoken-style explanation ideal for student learning.
-- **Text-to-Speech (gTTS)**: Synthesizes narration into an MP3 audio file (with offline `pyttsx3` fallback).
-- **Interactive Web UI**: Modern dark-mode web application featuring drag-and-drop file upload, diagram preview, real-time 3-step progress indicators, sample diagram picker, and an integrated audio player.
+- **Diagram Understanding** — Groq Vision API analyzes structure, axes, titles, legends, and data trends. Falls back to OCR + Groq text model if vision is unavailable.
+- **Educational Explanation** — Groq text LLM synthesizes a 3–5 sentence spoken-style explanation tuned for student audio learning.
+- **Text-to-Speech** — gTTS converts the explanation to an MP3 audio file. Falls back to `pyttsx3` offline engine if gTTS is unavailable.
+- **Web UI** — React + Vite frontend with drag-and-drop upload, real-time 3-step progress, sample diagram picker, and integrated audio player.
 
 ---
+
+## Tech Stack
+
+### 🔍 Vision Language Model (VLM) — Diagram Understanding
+| Model | Provider | Role |
+|-------|----------|------|
+| `qwen/qwen3.6-27b` | Groq | Primary VLM (vision + text) |
+| `llama-3.2-90b-vision-preview` | Groq / Meta | VLM fallback #1 |
+| `llama-3.2-11b-vision-preview` | Groq / Meta | VLM fallback #2 |
+
+Diagrams are base64-encoded and sent directly to the Groq Vision API. Models are tried in order; the first successful response is used.
+
+### 🧠 Text Agent — Educational Explanation Generation
+| Model | Provider | Role |
+|-------|----------|------|
+| `groq/compound` | Groq | Primary text agent |
+| `openai/gpt-oss-120b` | OpenAI via Groq | Text fallback #1 |
+| `qwen/qwen3.6-27b` | Groq | Text fallback #2 |
+| `llama-3.3-70b-versatile` | Groq / Meta | Text fallback #3 |
+
+The text agent receives the VLM's structural analysis and generates a 3–5 sentence spoken-style explanation optimized for TTS audio.
+
+### 📝 OCR — Vision Fallback
+| Library | Role |
+|---------|------|
+| `pytesseract` | Extracts raw text from diagram images when all VLMs fail |
+| `Pillow` | Image loading for OCR |
+| System `tesseract` | OCR engine (must be installed separately via `brew install tesseract`) |
+
+When VLM calls fail (rate limits, unsupported format, etc.), OCR-extracted text is fed to the text agent instead.
+
+### 🔊 Text-to-Speech (TTS)
+| Library | Type | Role |
+|---------|------|------|
+| `gTTS` (Google TTS) | Online | Primary TTS — natural-sounding MP3 output |
+| `pyttsx3` | Offline | Fallback TTS — used when gTTS / network is unavailable |
+
+### 🖥️ Backend
+| Technology | Role |
+|------------|------|
+| **FastAPI** | REST API framework |
+| **Uvicorn** | ASGI server |
+| **Groq Python SDK** (`groq>=0.9.0`) | API client for all LLM + VLM calls |
+| **OpenCV** (`opencv-python`) | Frame extraction from lecture videos |
+| **python-dotenv** | `.env` config loading |
+| **python-multipart** | File upload parsing |
+
+### 🎨 Frontend
+| Technology | Role |
+|------------|------|
+| **React + Vite** | Component framework and dev server |
+| **Vanilla CSS** | Styling (no CSS framework) |
+| **Google Fonts (Inter)** | Typography |
+
+
 
 ## Folder Structure
 
@@ -31,7 +86,6 @@ Mini-Project-3/
 │   └── seed_data.py             # Seed demo lecture metadata
 ├── tests/                       # Test suites
 ├── docs/                        # Project documentation
-├── static/                      # Served static frontend assets
 ├── storage/                     # Runtime data (gitignored)
 ├── sample_diagrams/             # Sample diagram images
 ├── demo_lectures/               # Source lecture videos
@@ -67,32 +121,56 @@ cp .env.example .env
 
 ## How to Run
 
-### Option A: Interactive Web UI (Recommended)
+The project runs as two separate processes: a **FastAPI backend** and a **React/Vite frontend**.
 
-Start the backend server from the project root:
+> ⚠️ **Always run backend commands from the project root** (`Mini-Project-3/`), not from inside the `backend/` subfolder — the `backend.main` module path won't resolve otherwise.
+
+---
+
+### Terminal 1 — Backend (FastAPI)
+
 ```bash
-./venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-```
-Open your browser and navigate to:
-[http://localhost:8000](http://localhost:8000)
+# From the project root:
+cd Mini-Project-3
 
-**Usage in Web UI:**
-1. Drag and drop any diagram image into the upload box (or click to browse).
-2. Or click one of the pre-loaded sample diagrams ("Line Graph", "Flowchart", "Bar Chart").
-3. Watch the real-time progress steps: **Understanding → Educational Explanation → Speech Synthesis**.
-4. Listen to the spoken audio narrative directly in the browser or download the `.mp3` file.
+python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+| URL | Purpose |
+|-----|---------|
+| http://localhost:8000 | REST API |
+| http://localhost:8000/docs | Interactive Swagger docs |
+
+---
+
+### Terminal 2 — Frontend (React/Vite)
+
+```bash
+# From the frontend directory:
+cd Mini-Project-3/frontend
+
+npm install       # only needed the first time
+npm run dev
+```
+
+| URL | Purpose |
+|-----|---------|
+| http://localhost:5173 | Web UI |
+
+The Vite dev server is pre-configured to proxy `/api` requests to the backend on port 8000.
 
 ---
 
 ### Option B: Command Line Interface (CLI)
 
-Run the diagram-to-speech service directly:
+Run the diagram-to-speech pipeline directly without the UI:
 
 ```bash
-./venv/bin/python -m backend.services.diagram_to_speech sample_diagrams/sample_diagram_1.png
+# From the project root:
+python3 -m backend.services.diagram_to_speech sample_diagrams/sample_diagram_1.png
 
-# Process with custom audio output path
-./venv/bin/python -m backend.services.diagram_to_speech sample_diagrams/sample_diagram_2.png --output my_explanation.mp3
+# With a custom audio output path:
+python3 -m backend.services.diagram_to_speech sample_diagrams/sample_diagram_2.png --output my_explanation.mp3
 ```
 
 ---
@@ -101,10 +179,10 @@ Run the diagram-to-speech service directly:
 
 ### Regenerating Sample Diagrams
 ```bash
-./venv/bin/python scripts/generate_samples.py
+python3 scripts/generate_samples.py
 ```
 
 ### Seeding Demo Lecture Data
 ```bash
-./venv/bin/python scripts/seed_data.py
+python3 scripts/seed_data.py
 ```
