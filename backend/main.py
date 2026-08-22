@@ -3,12 +3,12 @@ import uuid
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from backend.services import diagram_to_speech
-from backend.config import BASE_DIR, STORAGE_DIR, UPLOAD_DIR, AUDIO_DIR, SAMPLES_DIR, STATIC_DIR
+from backend.config import BASE_DIR, STORAGE_DIR, UPLOAD_DIR, AUDIO_DIR, SAMPLES_DIR
 from backend.routes.lectures import router as lectures_router
 from backend.routes.status import router as status_router
 
@@ -38,11 +38,13 @@ app.include_router(lectures_router)
 app.include_router(status_router)
 
 @app.get("/")
-async def serve_index():
-    index_file = STATIC_DIR / "index.html"
-    if index_file.is_file():
-        return FileResponse(index_file)
-    return JSONResponse({"message": "EduVision API is active. Access catalog via /api/lectures"})
+async def api_root():
+    return JSONResponse({
+        "name": "EduVision API",
+        "version": "1.0.0",
+        "message": "Backend is active. Run `npm run dev` inside /frontend for the UI.",
+        "docs": "/docs"
+    })
 
 # Single diagram upload route (legacy & demo endpoint)
 @app.post("/api/process")

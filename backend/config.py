@@ -11,9 +11,8 @@ AUDIO_DIR = STORAGE_DIR / "audio"
 FRAMES_DIR = STORAGE_DIR / "frames"
 METADATA_DIR = STORAGE_DIR / "metadata"
 SAMPLES_DIR = BASE_DIR / "sample_diagrams"
-STATIC_DIR = BASE_DIR / "static"
 
-for d in [STORAGE_DIR, UPLOAD_DIR, AUDIO_DIR, FRAMES_DIR, METADATA_DIR, SAMPLES_DIR, STATIC_DIR]:
+for d in [STORAGE_DIR, UPLOAD_DIR, AUDIO_DIR, FRAMES_DIR, METADATA_DIR, SAMPLES_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
