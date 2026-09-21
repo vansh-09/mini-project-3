@@ -55,6 +55,16 @@ export default function VideoPlayer({ lecture, metadata }) {
             return nextLang;
           });
           break;
+        case 'n':
+        case 'N':
+          e.preventDefault();
+          jumpToNextDiagram();
+          break;
+        case 'p':
+        case 'P':
+          e.preventDefault();
+          jumpToPrevDiagram();
+          break;
         case 'ArrowLeft':
           e.preventDefault();
           if (videoRef.current) {
@@ -77,6 +87,31 @@ export default function VideoPlayer({ lecture, metadata }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying, isAdPlaying, adEnabled, language, duration, events]);
+
+  const jumpToNextDiagram = () => {
+    if (!events.length || !videoRef.current) return;
+    const cur = videoRef.current.currentTime;
+    const nextEvt = events.find(evt => evt.timestamp > cur + 0.5);
+    if (nextEvt) {
+      performSeek(nextEvt.timestamp);
+      setAnnouncement(`Jumped to next diagram at ${nextEvt.timestamp} seconds: ${nextEvt.diagram_type}`);
+    } else {
+      setAnnouncement("No subsequent diagram events in this lecture.");
+    }
+  };
+
+  const jumpToPrevDiagram = () => {
+    if (!events.length || !videoRef.current) return;
+    const cur = videoRef.current.currentTime;
+    const pastEvts = events.filter(evt => evt.timestamp < cur - 1.0);
+    if (pastEvts.length > 0) {
+      const prevEvt = pastEvts[pastEvts.length - 1];
+      performSeek(prevEvt.timestamp);
+      setAnnouncement(`Jumped to previous diagram at ${prevEvt.timestamp} seconds: ${prevEvt.diagram_type}`);
+    } else {
+      setAnnouncement("No prior diagram events in this lecture.");
+    }
+  };
 
   // Handle Video Time Update & Diagram Event Audio Triggers
   const handleTimeUpdate = () => {
@@ -322,6 +357,24 @@ export default function VideoPlayer({ lecture, metadata }) {
               adEnabled={adEnabled}
               setAdEnabled={setAdEnabled}
             />
+
+            <button 
+              onClick={jumpToPrevDiagram} 
+              className="btn btn-secondary" 
+              title="Jump to Previous Diagram (P)"
+              aria-label="Jump to Previous Diagram"
+            >
+              <RotateCcw size={16} /> <span>Prev (P)</span>
+            </button>
+
+            <button 
+              onClick={jumpToNextDiagram} 
+              className="btn btn-secondary" 
+              title="Jump to Next Diagram (N)"
+              aria-label="Jump to Next Diagram"
+            >
+              <RotateCcw size={16} style={{ transform: 'scaleX(-1)' }} /> <span>Next (N)</span>
+            </button>
           </div>
 
           <LanguageSelector

@@ -50,14 +50,26 @@ export default function LecturePlayer({ lectureId, onBack }) {
 
   return (
     <main className="container" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <button onClick={onBack} className="btn btn-secondary">
           <ArrowLeft size={18} /> Back to Catalog
         </button>
 
-        <button onClick={() => setIsShortcutOpen(true)} className="btn btn-secondary" title="Keyboard Shortcuts Guide">
-          <Keyboard size={18} /> Shortcuts (?)
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <a
+            href={`/api/lectures/${lectureId}/export-notes`}
+            download={`accessible_notes_${lectureId}.md`}
+            className="btn btn-primary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            title="Download accessible study guide in Markdown for screen readers & Braille displays"
+          >
+            <FileText size={18} /> Download Accessible Notes (.md)
+          </a>
+
+          <button onClick={() => setIsShortcutOpen(true)} className="btn btn-secondary" title="Keyboard Shortcuts Guide">
+            <Keyboard size={18} /> Shortcuts (?)
+          </button>
+        </div>
       </div>
 
       {/* Header Info */}

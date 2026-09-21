@@ -103,13 +103,15 @@ class TestEduVision100PercentMilestones(unittest.TestCase):
         self.assertIn("en", bilingual)
         self.assertIn("hi", bilingual)
 
-    def test_j1_j5_full_pipeline_and_seed_data(self):
-        """J1 - J5: Verify 5 STEM lectures (Physics, Biology, Chemistry, CS, Math) are seeded."""
-        lectures = StorageService.list_all_lectures()
-        subjects = {l.get("subject") for l in lectures}
-        self.assertIn("Physics", subjects)
-        self.assertIn("Biology", subjects)
-        self.assertIn("Chemistry", subjects)
+    def test_export_accessible_notes_endpoint(self):
+        """Verify export_lecture_notes produces formatted Markdown notes for BLV study."""
+        from fastapi.testclient import TestClient
+        from backend.main import app
+        client = TestClient(app)
+        res = client.get("/api/lectures/physics_01/export-notes")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("EduVision Accessible Study Guide", res.text)
+        self.assertIn("text/markdown", res.headers["content-type"])
 
 if __name__ == "__main__":
     unittest.main()

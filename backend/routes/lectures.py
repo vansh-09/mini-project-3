@@ -34,6 +34,53 @@ async def get_lecture_event_metadata(lecture_id: str):
         "events": metadata.get("events", [])
     }
 
+@router.get("/{lecture_id}/export-notes")
+async def export_lecture_notes(lecture_id: str):
+    """
+    Generates and returns accessible Markdown study notes for BLV students.
+    Includes timestamps, OCR labels, and bilingual diagram audio narratives.
+    """
+    from fastapi.responses import Response
+    metadata = StorageService.get_lecture_metadata(lecture_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail=f"Lecture '{lecture_id}' not found")
+
+    title = metadata.get("title", "Untitled Lecture")
+    subject = metadata.get("subject", "General STEM")
+    description = metadata.get("description", "")
+    events = metadata.get("events", [])
+
+    md_lines = [
+        f"# EduVision Accessible Study Guide — {title}",
+        f"**Subject:** {subject} | **Lecture ID:** `{lecture_id}`",
+        f"**Description:** {description}\n",
+        "## Summary of Visual Diagram Events",
+        f"This lecture contains **{len(events)}** visual diagram descriptions tagged for screen reader navigation and Braille displays.\n",
+        "---"
+    ]
+
+    for idx, evt in enumerate(events):
+        ts = evt.get("timestamp", 0)
+        diagram_type = evt.get("diagram_type", "diagram").upper()
+        en_narrative = evt.get("explanation_en", "")
+        hi_narrative = evt.get("explanation_hi", "")
+        ocr_text = evt.get("ocr_text", "None")
+
+        md_lines.extend([
+            f"### Event #{idx + 1}: {diagram_type} (Timestamp: {ts}s)",
+            f"- **Entry Context:** {evt.get('entry_context', 'Diagram entry detected')}",
+            f"- **OCR Extracted Text:** `{ocr_text}`",
+            f"- **English Spoken Narrative:** \"{en_narrative}\"",
+            f"- **Hindi Spoken Narrative (हिंदी):** \"{hi_narrative}\"\n"
+        ])
+
+    md_content = "\n".join(md_lines)
+    return Response(
+        content=md_content,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename=accessible_notes_{lecture_id}.md"}
+    )
+
 @router.get("/{lecture_id}/status")
 async def check_status(lecture_id: str):
     """Check processing status for a lecture."""
