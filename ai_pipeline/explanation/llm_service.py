@@ -38,16 +38,34 @@ class LLMExplanationService:
         except Exception as e:
             print(f"LLM Explanation client error: {e}")
 
-        # Structured fallback explanations if Groq call fails
+        # Dynamic, context-grounded fallback explanations if Groq API fails or is rate-limited
+        summary_snippet = ""
+        if vlm_analysis:
+            # Extract first 200 non-empty characters for grounded context
+            clean_lines = [line.strip() for line in vlm_analysis.splitlines() if line.strip() and not line.startswith("VLM")]
+            if clean_lines:
+                summary_snippet = " ".join(clean_lines[:2])
+
         if lang == "en":
+            if summary_snippet:
+                return (
+                    f"This {subject} diagram visualizes key instructional concepts: {summary_snippet[:160]}. "
+                    "The components and trends labeled in the figure highlight core educational principles of this topic."
+                )
             return (
                 f"This {subject} diagram illustrates key technical concepts. "
                 "The visual layout displays data trends and structural components clearly labeled. "
                 "Understanding these relationships highlights the fundamental principles of the topic."
             )
         else:
+            if summary_snippet:
+                return (
+                    f"यह {subject} आरेख मुख्य अवधारणाओं को प्रस्तुत करता है: {summary_snippet[:160]}। "
+                    "चित्र में दिए गए मुख्य घटक और डेटा बिंदु इस विषय के मूलभूत सिद्धांतों को स्पष्ट रूप से दर्शाते हैं।"
+                )
             return (
                 f"यह {subject} आरेख मुख्य तकनीकी अवधारणाओं को दर्शाता है। "
                 "दृश्य लेआउट डेटा प्रवृत्तियों और संरचनात्मक घटकों को स्पष्ट रूप से प्रस्तुत करता है। "
                 "इन संबंधों को समझना इस विषय के मूलभूत सिद्धांतों को उजागर करता है।"
             )
+

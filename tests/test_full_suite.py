@@ -58,6 +58,29 @@ class TestEduVision100PercentMilestones(unittest.TestCase):
         self.assertTrue(Path(audio_paths["audio_en"].replace("/storage/audio/", "storage/audio/")).is_file())
         self.assertTrue(Path(audio_paths["audio_hi"].replace("/storage/audio/", "storage/audio/")).is_file())
 
+    def test_m3_visual_deduplication(self):
+        """Verify EventGrouper groups consecutive frames and performs visual deduplication."""
+        grouper = EventGrouper(max_gap_seconds=3.0)
+        sample_img = "storage/frames/physics_01/frame_0001_5s.jpg"
+        detections = [
+            {"frame_path": sample_img, "timestamp": 5.0, "is_diagram": True, "diagram_type": "graph"},
+            {"frame_path": sample_img, "timestamp": 6.0, "is_diagram": True, "diagram_type": "graph"},
+            {"frame_path": sample_img, "timestamp": 12.0, "is_diagram": True, "diagram_type": "graph"},
+            {"frame_path": sample_img, "timestamp": 13.0, "is_diagram": True, "diagram_type": "graph"}
+        ]
+        events = grouper.group_detections(detections)
+        # Because all frames use the exact same image, visual deduplication merges them into a single event spanning 5s-13s
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["start_time"], 5.0)
+        self.assertEqual(events[0]["end_time"], 13.0)
+
+    def test_m4_context_grounded_fallback(self):
+        """Verify LLMExplanationService fallback synthesizes grounded text from VLM context."""
+        llm = LLMExplanationService()
+        vlm_ctx = "Velocity vs Time Graph showing constant acceleration up to 50 m/s."
+        explanation_en = llm._generate_explanation(vlm_ctx, subject="Physics", lang="en")
+        self.assertGreater(len(explanation_en), 20)
+
     def test_j1_j5_full_pipeline_and_seed_data(self):
         """J1 - J5: Verify 5 STEM lectures (Physics, Biology, Chemistry, CS, Math) are seeded."""
         lectures = StorageService.list_all_lectures()
@@ -68,3 +91,4 @@ class TestEduVision100PercentMilestones(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

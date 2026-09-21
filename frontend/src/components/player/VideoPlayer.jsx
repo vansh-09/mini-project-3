@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, AlertCircle } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, AlertCircle, Eye } from 'lucide-react';
 import LanguageSelector from './LanguageSelector';
 import AccessibilityControls from './AccessibilityControls';
 
 export default function VideoPlayer({ lecture, metadata }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
+  const userPausedRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAdPlaying, setIsAdPlaying] = useState(false);
@@ -20,6 +21,62 @@ export default function VideoPlayer({ lecture, metadata }) {
   const [announcement, setAnnouncement] = useState('');
 
   const events = metadata?.events || [];
+
+  // Global Keyboard Navigation Listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't intercept when focused inside text input or textarea
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+      switch (e.key) {
+        case ' ':
+        case 'k':
+        case 'K':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          toggleMute();
+          break;
+        case 'd':
+        case 'D':
+          e.preventDefault();
+          setAdEnabled(prev => !prev);
+          setAnnouncement(`Audio description ${!adEnabled ? 'enabled' : 'disabled'}`);
+          break;
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          setLanguage(prev => {
+            const nextLang = prev === 'en' ? 'hi' : 'en';
+            setAnnouncement(`Language switched to ${nextLang === 'en' ? 'English' : 'Hindi'}`);
+            return nextLang;
+          });
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (videoRef.current) {
+            const newTime = Math.max(0, videoRef.current.currentTime - 5);
+            performSeek(newTime);
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (videoRef.current) {
+            const newTime = Math.min(duration, videoRef.current.currentTime + 5);
+            performSeek(newTime);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, isAdPlaying, adEnabled, language, duration, events]);
 
   // Handle Video Time Update & Diagram Event Audio Triggers
   const handleTimeUpdate = () => {
@@ -40,26 +97,27 @@ export default function VideoPlayer({ lecture, metadata }) {
   const triggerAudioDescription = (evt) => {
     if (!videoRef.current || !audioRef.current) return;
 
-    // 1. Pause video
+    // Pause lecture video
     videoRef.current.pause();
     setIsPlaying(false);
     setIsAdPlaying(true);
     setCurrentEvent(evt);
+    userPausedRef.current = false;
 
     // Mark event as played
     setPlayedEventIds(prev => new Set(prev).add(evt.event_id));
 
-    // Choose language audio file
+    // Select audio & text based on language setting
     const audioSrc = language === 'hi' ? evt.audio_hi : evt.audio_en;
-    const explanationText = language === 'hi' ? evt.explanation_hi : evt.explanation_en;
+    const diagramType = evt.diagram_type || 'diagram';
 
     audioRef.current.src = audioSrc;
-    setAnnouncement(`Diagram Audio Description: ${explanationText}`);
+    // Screen reader announcement: concise status prompt to avoid double audio overlap with TTS MP3
+    setAnnouncement(`Audio description playing: ${diagramType}`);
 
-    // 2. Play AD audio
+    // Play AD audio
     audioRef.current.play().catch(err => {
       console.error("Audio playback error:", err);
-      // Fallback resume if audio fails
       resumeVideoPlayback();
     });
   };
@@ -71,38 +129,80 @@ export default function VideoPlayer({ lecture, metadata }) {
   const resumeVideoPlayback = () => {
     setIsAdPlaying(false);
     setCurrentEvent(null);
-    if (videoRef.current) {
+    if (!userPausedRef.current && videoRef.current) {
       videoRef.current.play();
       setIsPlaying(true);
-      setAnnouncement("Audio Description complete. Resuming lecture video.");
+      setAnnouncement("Audio description finished. Resuming video.");
+    } else {
+      setAnnouncement("Audio description finished. Video paused.");
     }
   };
 
   const togglePlay = () => {
-    if (isAdPlaying) return; // Prevent breaking AD audio
+    if (isAdPlaying) {
+      // If user pauses while AD is playing, track manual pause intent
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        userPausedRef.current = true;
+        setAnnouncement("Audio description paused.");
+      } else if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.play();
+        userPausedRef.current = false;
+        setAnnouncement("Resuming audio description.");
+      }
+      return;
+    }
+
     if (!videoRef.current) return;
 
     if (isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
+      userPausedRef.current = true;
     } else {
       videoRef.current.play();
       setIsPlaying(true);
+      userPausedRef.current = false;
+    }
+  };
+
+  const performSeek = (seekTime) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
+
+      // Replayability / Seek Invalidation:
+      // Clear playedEventIds for all events at or after seekTime so re-watching triggers AD again
+      setPlayedEventIds(prev => {
+        const nextSet = new Set(prev);
+        events.forEach(evt => {
+          if (evt.timestamp >= seekTime - 0.5) {
+            nextSet.delete(evt.event_id);
+          }
+        });
+        return nextSet;
+      });
+
+      // Stop any active AD audio on seek
+      if (isAdPlaying && audioRef.current) {
+        audioRef.current.pause();
+        setIsAdPlaying(false);
+        setCurrentEvent(null);
+      }
     }
   };
 
   const handleSeek = (e) => {
     const seekTime = parseFloat(e.target.value);
-    if (videoRef.current) {
-      videoRef.current.currentTime = seekTime;
-      setCurrentTime(seekTime);
-    }
+    performSeek(seekTime);
   };
 
   const toggleMute = () => {
     if (videoRef.current) {
-      videoRef.current.muted = !muted;
-      setMuted(!muted);
+      const nextMuted = !muted;
+      videoRef.current.muted = nextMuted;
+      if (audioRef.current) audioRef.current.muted = nextMuted;
+      setMuted(nextMuted);
     }
   };
 
@@ -111,7 +211,7 @@ export default function VideoPlayer({ lecture, metadata }) {
       {/* Screen Reader Live Region for ARIA Announcements */}
       <div 
         role="status" 
-        aria-live="assertive" 
+        aria-live="polite" 
         style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}
       >
         {announcement}
@@ -138,25 +238,36 @@ export default function VideoPlayer({ lecture, metadata }) {
           <div style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.92)',
+            background: 'rgba(15, 23, 42, 0.94)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: '2rem',
+            padding: '1.5rem',
             textAlign: 'center',
             zIndex: 10
           }}>
-            <div style={{ background: 'var(--accent-primary)', color: '#fff', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ background: 'var(--accent-primary)', color: '#fff', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Volume2 className="spin" size={16} /> Audio Description Playing ({language.toUpperCase()})
             </div>
             
-            <p style={{ fontSize: '1.2rem', color: '#fff', maxWidth: '700px', lineHeight: 1.5, marginBottom: '1rem', fontStyle: 'italic' }}>
+            {/* Visual Callout Overlay for Low-Vision and Sighted Peers */}
+            {(currentEvent.annotated_image_url || currentEvent.image_url) && (
+              <div style={{ maxWidth: '65%', maxHeight: '45%', marginBottom: '0.75rem', borderRadius: '8px', overflow: 'hidden', border: '2px solid var(--accent-primary)' }}>
+                <img
+                  src={currentEvent.annotated_image_url || currentEvent.image_url}
+                  alt={`Diagram region visual callout for event ${currentEvent.event_id}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+            )}
+
+            <p style={{ fontSize: '1.1rem', color: '#fff', maxWidth: '700px', lineHeight: 1.4, marginBottom: '0.75rem', fontStyle: 'italic' }}>
               "{language === 'hi' ? currentEvent.explanation_hi : currentEvent.explanation_en}"
             </p>
 
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Lecture video automatically paused. Will resume when narrative ends.
+              Lecture video automatically paused. Press Space or K to pause audio narrative.
             </span>
           </div>
         )}
@@ -189,10 +300,10 @@ export default function VideoPlayer({ lecture, metadata }) {
             <button 
               onClick={togglePlay} 
               className="btn btn-primary"
-              aria-label={isPlaying ? "Pause video" : "Play video"}
+              aria-label={isPlaying || isAdPlaying ? "Pause" : "Play"}
             >
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-              <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              {isPlaying || isAdPlaying ? <Pause size={20} /> : <Play size={20} />}
+              <span>{isPlaying || isAdPlaying ? 'Pause' : 'Play'}</span>
             </button>
 
             <button onClick={toggleMute} className="btn btn-secondary" aria-label={muted ? "Unmute" : "Mute"}>
@@ -214,3 +325,4 @@ export default function VideoPlayer({ lecture, metadata }) {
     </div>
   );
 }
+

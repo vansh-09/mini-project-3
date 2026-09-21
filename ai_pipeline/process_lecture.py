@@ -124,6 +124,8 @@ class LecturePipeline:
                 "audio_hi": audio_paths["audio_hi"]
             }
             processed_events.append(processed_event)
+            # Brief rate-limit cooldown to prevent HTTP 429 errors during API inference
+            time.sleep(0.3)
 
         final_metadata = {
             "lecture_id": lecture_id,
