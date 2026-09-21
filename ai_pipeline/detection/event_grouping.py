@@ -45,16 +45,25 @@ class EventGrouper:
     def _create_event(self, index: int, group: List[Dict[str, Any]]) -> Dict[str, Any]:
         start_time = group[0]["timestamp"]
         end_time = group[-1]["timestamp"]
-        mid_frame = group[len(group) // 2]
+
+        # Select frame with highest visual stability score as optimal entry frame
+        optimal_entry_frame = max(group, key=lambda f: f.get("visual_stability_score", 0))
+        entry_timestamp = optimal_entry_frame["timestamp"]
+
+        diagram_type = optimal_entry_frame.get("diagram_type", "diagram")
+        entry_context = f"Diagram entry detected at {entry_timestamp}s. Visual structure: {diagram_type} with {len(optimal_entry_frame.get('bounding_boxes', []))} key regions."
 
         return {
             "event_id": f"ad_evt_{index:03d}",
             "start_time": start_time,
             "end_time": end_time,
-            "timestamp": start_time,
-            "image": mid_frame["frame_path"],
-            "diagram_type": mid_frame.get("diagram_type", "diagram"),
-            "bounding_boxes": mid_frame.get("bounding_boxes", [])
+            "timestamp": entry_timestamp,
+            "trigger_timestamp": entry_timestamp,
+            "image": optimal_entry_frame["frame_path"],
+            "diagram_type": diagram_type,
+            "diagram_state": "NEW_DIAGRAM_ENTRY",
+            "entry_context": entry_context,
+            "bounding_boxes": optimal_entry_frame.get("bounding_boxes", [])
         }
 
     def _deduplicate_visually(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

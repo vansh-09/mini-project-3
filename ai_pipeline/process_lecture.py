@@ -77,6 +77,8 @@ class LecturePipeline:
 
         # Step 4, 5, 6: OCR, VLM, LLM, TTS per event (Contract 3) - 75% -> 100% Progress
         processed_events = []
+        prior_events_context = []
+
         for idx, event in enumerate(events):
             step_pct = 50 + int(((idx + 1) / max(1, len(events))) * 45)
             if progress_callback: progress_callback(step_pct, f"Processing Event {idx + 1}/{len(events)}: Vision, LLM & Speech Synthesis")
@@ -98,8 +100,15 @@ class LecturePipeline:
             # VLM Visual Analysis
             vlm_analysis = self.vlm_service.analyze_diagram(img_path, ocr_text=ocr_text)
 
-            # LLM Bilingual Explanation
-            explanations = self.llm_service.generate_bilingual_explanations(vlm_analysis, subject=subject)
+            # LLM Bilingual Explanation (with prior_events_context to prevent double/over-explaining)
+            explanations = self.llm_service.generate_bilingual_explanations(
+                vlm_analysis,
+                subject=subject,
+                prior_events_context=prior_events_context
+            )
+            
+            # Track prior context for subsequent events
+            prior_events_context.append(f"Event {idx + 1} ({event.get('diagram_type', 'diagram')}): {explanations['en'][:120]}")
 
             # TTS Audio Synthesis
             audio_paths = self.tts_service.synthesize_bilingual(
@@ -111,9 +120,12 @@ class LecturePipeline:
             processed_event = {
                 "event_id": event_key,
                 "timestamp": event["timestamp"],
+                "trigger_timestamp": event.get("trigger_timestamp", event["timestamp"]),
                 "start_time": event["start_time"],
                 "end_time": event["end_time"],
                 "diagram_type": event["diagram_type"],
+                "diagram_state": event.get("diagram_state", "NEW_DIAGRAM_ENTRY"),
+                "entry_context": event.get("entry_context", f"Diagram entry detected at {event['timestamp']}s"),
                 "image_url": f"/storage/frames/{lecture_id}/{Path(img_path).name}",
                 "annotated_image_url": f"/storage/frames/{lecture_id}/{Path(annotated_path).name}",
                 "ocr_text": ocr_text,

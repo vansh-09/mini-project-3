@@ -4,22 +4,43 @@ from backend.config import TEXT_MODELS
 from ai_pipeline.explanation.prompts import ENGLISH_EXPLANATION_PROMPT, HINDI_EXPLANATION_PROMPT
 
 class LLMExplanationService:
-    def generate_bilingual_explanations(self, vlm_analysis: str, subject: str = "General Science") -> Dict[str, str]:
+    def generate_bilingual_explanations(
+        self,
+        vlm_analysis: str,
+        subject: str = "General Science",
+        prior_events_context: list = None
+    ) -> Dict[str, str]:
         """
         Generates both English and Hindi audio descriptions from VLM analysis.
+        Passes prior_events_context to prevent double/over-explaining previously covered diagrams.
         Returns: { "en": "...", "hi": "..." }
         """
-        en_text = self._generate_explanation(vlm_analysis, subject, lang="en")
-        hi_text = self._generate_explanation(vlm_analysis, subject, lang="hi")
+        en_text = self._generate_explanation(vlm_analysis, subject, lang="en", prior_events_context=prior_events_context)
+        hi_text = self._generate_explanation(vlm_analysis, subject, lang="hi", prior_events_context=prior_events_context)
 
         return {
             "en": en_text,
             "hi": hi_text
         }
 
-    def _generate_explanation(self, vlm_analysis: str, subject: str, lang: str = "en") -> str:
+    def _generate_explanation(
+        self,
+        vlm_analysis: str,
+        subject: str,
+        lang: str = "en",
+        prior_events_context: list = None
+    ) -> str:
         prompt_template = ENGLISH_EXPLANATION_PROMPT if lang == "en" else HINDI_EXPLANATION_PROMPT
         prompt = prompt_template.format(analysis=vlm_analysis, subject=subject)
+
+        if prior_events_context:
+            prior_summary = "\n- ".join(prior_events_context[-3:])
+            prompt += (
+                "\n\nContext of previously described diagram events in this lecture:\n"
+                f"- {prior_summary}\n\n"
+                "CRITICAL INSTRUCTION: DO NOT re-explain or over-explain diagram concepts, labels, or structures already described above. "
+                "Focus exclusively on the NEW visual relationships, specific data trends, or structural changes introduced at this timestamp."
+            )
 
         try:
             client = get_groq_client()

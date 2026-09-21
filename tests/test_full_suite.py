@@ -81,6 +81,28 @@ class TestEduVision100PercentMilestones(unittest.TestCase):
         explanation_en = llm._generate_explanation(vlm_ctx, subject="Physics", lang="en")
         self.assertGreater(len(explanation_en), 20)
 
+    def test_frame_context_and_prior_history(self):
+        """Verify optimal entry timestamp selection and prior context tracking to prevent over-explaining."""
+        grouper = EventGrouper()
+        sample_img = "storage/frames/physics_01/frame_0001_5s.jpg"
+        detections = [
+            {"frame_path": sample_img, "timestamp": 5.0, "is_diagram": True, "visual_stability_score": 10.0},
+            {"frame_path": sample_img, "timestamp": 6.0, "is_diagram": True, "visual_stability_score": 85.0}
+        ]
+        events = grouper.group_detections(detections)
+        self.assertEqual(events[0]["trigger_timestamp"], 6.0)
+        self.assertEqual(events[0]["diagram_state"], "NEW_DIAGRAM_ENTRY")
+        self.assertIn("entry_context", events[0])
+
+        llm = LLMExplanationService()
+        bilingual = llm.generate_bilingual_explanations(
+            "Circuit diagram with resistors in series",
+            subject="Physics",
+            prior_events_context=["Event 1: Ohms law graph covered previously."]
+        )
+        self.assertIn("en", bilingual)
+        self.assertIn("hi", bilingual)
+
     def test_j1_j5_full_pipeline_and_seed_data(self):
         """J1 - J5: Verify 5 STEM lectures (Physics, Biology, Chemistry, CS, Math) are seeded."""
         lectures = StorageService.list_all_lectures()

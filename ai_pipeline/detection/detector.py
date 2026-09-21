@@ -77,11 +77,17 @@ class DiagramDetector:
             if not bounding_boxes:
                 bounding_boxes = [{"x": int(w*0.1), "y": int(h*0.1), "w": int(w*0.8), "h": int(h*0.8)}]
 
+            # Calculate visual stability score for entry point detection
+            visual_stability_score = round(edge_density * 100 + len(contours) * 0.1 + num_hough_lines * 0.5, 2)
+
             return {
                 "is_diagram": is_diagram,
                 "confidence": confidence,
                 "diagram_type": diagram_type if is_diagram else "none",
-                "bounding_boxes": bounding_boxes
+                "bounding_boxes": bounding_boxes,
+                "edge_density": round(float(edge_density), 4),
+                "contour_complexity": len(contours),
+                "visual_stability_score": visual_stability_score
             }
         except ImportError:
             return {

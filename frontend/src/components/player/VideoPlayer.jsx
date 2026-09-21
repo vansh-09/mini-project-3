@@ -247,9 +247,17 @@ export default function VideoPlayer({ lecture, metadata }) {
             textAlign: 'center',
             zIndex: 10
           }}>
-            <div style={{ background: 'var(--accent-primary)', color: '#fff', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ background: 'var(--accent-primary)', color: '#fff', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Volume2 className="spin" size={16} /> Audio Description Playing ({language.toUpperCase()})
+              <span style={{ background: 'rgba(255,255,255,0.2)', padding: '0.1rem 0.5rem', borderRadius: '10px', fontSize: '0.75rem' }}>
+                {currentEvent.diagram_state || "NEW DIAGRAM ENTRY"}
+              </span>
             </div>
+            {currentEvent.entry_context && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--accent-secondary)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                {currentEvent.entry_context}
+              </div>
+            )}
             
             {/* Visual Callout Overlay for Low-Vision and Sighted Peers */}
             {(currentEvent.annotated_image_url || currentEvent.image_url) && (
